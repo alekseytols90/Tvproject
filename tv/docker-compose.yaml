@@ -1,0 +1,48 @@
+version: '3'
+services:
+  app_server:
+    container_name: app-server
+    build: ./app-server
+    environment:
+      - FLASK_APP=/srv/app/wsgi.py
+      - FLASK_DEBUG=1
+      - FLASK_SECRET_KEY=sandbox
+      - DB_USER=sandbox
+      - DB_PASSWORD=sandbox
+      - DB_NAME=sandbox
+      - DB_HOST=database:5432
+    volumes:
+      - ./app-server/app:/srv/app
+    command: flask run --host=0.0.0.0 --port=5000
+    # command: gunicorn wsgi:app --chdir /srv/app -b 0.0.0.0:5000
+
+  scraper:
+    container_name: scraper
+    build: ./app-server
+    volumes:
+      - ./app-server/app:/srv/app
+    command: python3 scraper.py
+
+  http_server:
+    container_name: http-server
+    build: ./http-server
+    ports:
+      - "80:80"
+    restart: always
+    volumes:
+      - ./http-server/nginx.config:/etc/nginx/sites-enabled/default
+      - ./web-client/app/static:/srv/static
+
+  web_client:
+    container_name: web-client
+    build: ./web-client
+    environment:
+      - HOST_URL=http://localhost
+      - API_URL=http://localhost/api
+    volumes:
+      - ./web-client/app/source:/srv/app/source
+      - ./web-client/app/static:/srv/app/static
+      - ./web-client/app/webpack.config.js:/srv/app/webpack.config.js
+    restart: always
+    working_dir: /srv/app
+    command: yarn webpack --watch
